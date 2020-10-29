@@ -39,6 +39,7 @@ defmodule Phoenix.LiveViewTest.ClientProxy do
 
   """
   def start_link(opts) do
+    IO.inspect("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ start_link")
     GenServer.start_link(__MODULE__, opts)
   end
 
@@ -94,6 +95,7 @@ defmodule Phoenix.LiveViewTest.ClientProxy do
     }
 
     try do
+      IO.inspect("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ calling mount_view")
       {root_view, rendered} = mount_view(state, root_view, url)
 
       new_state =
@@ -121,16 +123,21 @@ defmodule Phoenix.LiveViewTest.ClientProxy do
   end
 
   defp mount_view(state, view, url) do
+    IO.inspect("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ in mount_view()")
     ref = make_ref()
 
     case start_supervised_channel(state, view, ref, url) do
       {:ok, pid} ->
         mon_ref = Process.monitor(pid)
 
-        receive do
+        receive do #HERE
           {^ref, {:ok, %{rendered: rendered}}} ->
             Process.demonitor(mon_ref, [:flush])
-            {%{view | pid: pid}, DOM.merge_diff(%{}, rendered)}
+            # IO.inspect(rendered, label: "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ rendered", limit: :infinity)
+            merge_diff = DOM.merge_diff(%{}, rendered)
+            # IO.inspect(merge_diff, label: "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ merge_diff", limit: :infinity)
+            # String.myers_difference(rendered, merge_diff)
+            {%{view | pid: pid}, merge_diff}
 
           {^ref, {:error, %{live_redirect: opts}}} ->
             throw(stop_redirect(state, view.topic, {:live_redirect, opts}))
@@ -151,6 +158,7 @@ defmodule Phoenix.LiveViewTest.ClientProxy do
   end
 
   defp start_supervised_channel(state, view, ref, url) do
+    IO.inspect("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ in start_supervised_channel()")
     socket = %Phoenix.Socket{
       transport_pid: self(),
       serializer: __MODULE__,
@@ -178,6 +186,7 @@ defmodule Phoenix.LiveViewTest.ClientProxy do
     }
 
     with {:ok, pid} <- Supervisor.start_child(state.test_supervisor, spec) do
+      IO.inspect("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ send to Phoenix.Channel...")
       send(pid, {Phoenix.Channel, params, from, socket})
       {:ok, pid}
     end
@@ -418,12 +427,14 @@ defmodule Phoenix.LiveViewTest.ClientProxy do
   end
 
   defp put_view(state, %ClientProxy{pid: pid} = view, rendered) do
+    IO.inspect("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ in put_view()")
     {:ok, %{view: module}} = verify_session(view)
     new_view = %ClientProxy{view | module: module, proxy: self(), pid: pid, rendered: rendered}
     Process.monitor(pid)
 
     rendered = maybe_push_events(rendered, state)
 
+    IO.inspect("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ calling DOM.render_diff from put_view()")
     patch_view(
       %{
         state
@@ -499,6 +510,7 @@ defmodule Phoenix.LiveViewTest.ClientProxy do
   defp merge_rendered(state, topic, %{diff: diff}), do: merge_rendered(state, topic, diff)
 
   defp merge_rendered(%{html: html_before} = state, topic, %{} = diff) do
+    IO.inspect("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ in merge_rendered()")
     {diff, state} =
       diff
       |> maybe_push_events(state)
@@ -510,6 +522,7 @@ defmodule Phoenix.LiveViewTest.ClientProxy do
         rendered = DOM.merge_diff(view.rendered, diff)
         new_view = %ClientProxy{view | rendered: rendered}
 
+        IO.inspect("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ calling DOM.render_diff from merge_rendered()")
         %{state | views: Map.update!(state.views, topic, fn _ -> new_view end)}
         |> patch_view(new_view, DOM.render_diff(rendered))
         |> detect_added_or_removed_children(new_view, html_before)
@@ -817,6 +830,7 @@ defmodule Phoenix.LiveViewTest.ClientProxy do
   end
 
   defp maybe_push_events(diff, state) do
+    IO.inspect("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ in maybe_push_events()")
     case diff do
       %{@events => events} ->
         for [name, payload] <- events, do: send_caller(state, {:push_event, name, payload})

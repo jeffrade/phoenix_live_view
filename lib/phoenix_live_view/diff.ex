@@ -38,10 +38,13 @@ defmodule Phoenix.LiveView.Diff do
   It only accepts a full render diff.
   """
   def to_iodata(map, component_mapper \\ fn _cid, content -> content end) do
+    # IO.inspect(map, label: "MMMMMMMMMMMMMMMMMMMMMMMMMMM map", limit: :infinity)
     to_iodata(map, Map.get(map, @components, %{}), component_mapper) |> elem(0)
   end
 
   defp to_iodata(%{@dynamics => dynamics, @static => static}, components, mapper) do
+    # IO.inspect(dynamics, label: "$$$$$$$$$$$$$$$$$$$$$$$$$$$ dynamics", limit: :infinity)
+    # IO.inspect(static, label: "$$$$$$$$$$$$$$$$$$$$$$$$$$$ static", limit: :infinity)
     Enum.map_reduce(dynamics, components, fn dynamic, components ->
       many_to_iodata(static, dynamic, [], components, mapper)
     end)
@@ -62,14 +65,62 @@ defmodule Phoenix.LiveView.Diff do
     {binary, components}
   end
 
+  # defp to_iodata(%{0 => binary}, components, _mapper) when is_binary(binary) do
+  #   IO.inspect(binary, label: "HHHHHHHHHHHHHHHHHHHHHHHHHHHHH binary", limit: :infinity)
+  #   {binary, components}
+  # end
+
   defp one_to_iodata([last], _parts, _counter, acc, components, _mapper) do
     {Enum.reverse([last | acc]), components}
   end
 
   defp one_to_iodata([head | tail], parts, counter, acc, components, mapper) do
+    # require IEx; IEx.pry
+    # IO.inspect("COUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTER")
+    # IO.inspect("COUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTER")
+    # IO.inspect("COUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTER")
+    # IO.inspect(counter, label: "################### counter", limit: :infinity)
+    # IO.inspect(head, label: "################### head", limit: :infinity)
+    # IO.inspect(tail, label: "################### tail", limit: :infinity)
+    # IO.inspect(parts, label: "################### parts", limit: :infinity)
+    # IO.inspect(acc, label: "################### acc", limit: :infinity)
+    # IO.inspect(components, label: "################### components", limit: :infinity)
     {iodata, components} = to_iodata(Map.fetch!(parts, counter), components, mapper)
     one_to_iodata(tail, parts, counter + 1, [iodata, head | acc], components, mapper)
   end
+
+  # "COUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTER"
+  # "COUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTER"
+  # "COUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTERCOUNTER"
+  # ################### counter: 10
+  # ################### head: "\n    </div>\n  </div>\n  "
+  # ################### tail: ["\n</div>\n"]
+  # ################### parts: %{
+  #   0 => "faded-div-wrapper desktop-trims-wrapper",
+  #   1 => "hidden",
+  #   2 => "hidden",
+  #   3 => "desktop-trims",
+  #   4 => "layer-closed",
+  #   5 => "Trim",
+  #   6 => %{
+  #     0 => "<svg class=\"sds-text-field__icon\" height=\"16\" width=\"16\"><use xlink:href=\"/svg/spritemap.svg#chevron-down\"></use></svg>",
+  #     :s => ["\n        ", "\n      "]
+  #   },
+  #   7 => "refinement-overlay",
+  #   8 => "desktop-trims",
+  #   9 => %{
+  #     0 => %{0 => "", :s => ["  ", "\n"]},
+  #     :s => ["\n              ", "\n            "]
+  #   },
+  #   10 => %{0 => "desktop-trims"},
+  #   :s => ["<div class=\"", " ", "\">\n  <div class=\"sds-field ",
+  #    "\">\n    <div phx-click=\"show_refinement\" phx-value-id=\"",
+  #    "\" onclick=\"\" class=\"refinement-heading-wrapper ",
+  #    "\">\n      <label class=\"refinement-title\">", "</label>\n      ",
+  #    "\n      <div class=\"refinement-back-button sds-button--secondary-dense\" role=\"button\" phx-click=\"hide_refinement\" onclick=\"\">All filters</div>\n    </div>\n    <div class=\"input-wrapper ",
+  #    "\" id=\"input-wrapper-", "\">\n      ", "\n    </div>\n  </div>\n  ",
+  #    "\n</div>\n"]
+  # }
 
   defp many_to_iodata([shead | stail], [dhead | dtail], acc, components, mapper) do
     {iodata, components} = to_iodata(dhead, components, mapper)
@@ -85,6 +136,7 @@ defmodule Phoenix.LiveView.Diff do
       %{@static => static} = diff when is_integer(static) ->
         static = abs(static)
         components = resolve_components_xrefs(static, components)
+        IO.inspect(static, label: ":s:s:s:s:s:s:s:s:s:s:s:s:s:s:s:s:s:s:s:s:s:s Diff.resolve_components_xrefs(): going to delete from diff, ")
         Map.put(components, cid, deep_merge(components[static], Map.delete(diff, @static)))
 
       %{} ->
@@ -95,6 +147,14 @@ defmodule Phoenix.LiveView.Diff do
   defp deep_merge(_original, %{@static => _} = extra), do: extra
 
   defp deep_merge(original, extra) do
+    case extra do
+      %{0 => "desktop-trims"} ->
+        IO.inspect("FOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUND Diff.deep_merge()")
+        IO.inspect(extra, label: "FOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUND Diff.deep_merge()")
+        IO.inspect("FOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUNDFOUND Diff.deep_merge()")
+      _ -> false
+    end
+
     Map.merge(original, extra, fn
       _, %{} = original, %{} = extra -> deep_merge(original, extra)
       _, _original, extra -> extra
@@ -559,6 +619,24 @@ defmodule Phoenix.LiveView.Diff do
         {diff, component_prints, pending, components} =
           traverse(socket, rendered, prints, pending, components, changed?)
 
+        case linked_cid do
+          nil ->
+            IO.inspect("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% render_component(): linked_cid nil for id=#{id} and cid=#{cid}")
+          _ -> false
+        end
+
+        case id do
+          "desktop-trims" ->
+            IO.inspect(cid, label: "OUTOUTOUTOUTOUTOUTOUTOUTOUTOUT render_component(): desktop-trims cid=")
+            IO.inspect(cids, label: "OUTOUTOUTOUTOUTOUTOUTOUTOUTOUT render_component(): desktop-trims cids=")
+            IO.inspect(linked_cid, label: "OUTOUTOUTOUTOUTOUTOUTOUTOUTOUT render_component(): desktop-trims linked_cid=")
+          # "desktop-models" ->
+          #   IO.inspect(cid, label: "OUTOUTOUTOUTOUTOUTOUTOUTOUTOUT render_component(): desktop-models cid=")
+          #   IO.inspect(cids, label: "OUTOUTOUTOUTOUTOUTOUTOUTOUTOUT render_component(): desktop-models cids=")
+          #   IO.inspect(linked_cid, label: "OUTOUTOUTOUTOUTOUTOUTOUTOUTOUT render_component(): desktop-models linked_cid=")
+          _ -> false
+        end
+
         diff = if linked_cid, do: Map.put(diff, @static, linked_cid), else: diff
         socket = Utils.clear_changed(%{socket | fingerprints: component_prints})
         {socket, pending, diff, components}
@@ -597,6 +675,19 @@ defmodule Phoenix.LiveView.Diff do
          iterator = :maps.iterator(Map.fetch!(id_to_cid, component)),
          {cid, existing_prints} <-
            find_same_component_print(print, iterator, old_cids, new_cids, @attempts) do
+      case cid do
+        17 ->
+          IO.inspect(cid, label: "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% in maybe_reuse_static(): cid=")
+          IO.inspect(old_cids, label: "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% in maybe_reuse_static(): old_cids=")
+          IO.inspect(Map.get(new_cids, 17), label: "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% in maybe_reuse_static(): new_cids 17=")
+          IO.inspect(id_to_cid, label: "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% in maybe_reuse_static(): id_to_cid=")
+        # 16 ->
+        #   IO.inspect(cid, label: "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% in maybe_reuse_static(): cid=")
+        #   IO.inspect(old_cids, label: "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% in maybe_reuse_static(): old_cids=")
+        #   IO.inspect(Map.get(new_cids, 16), label: "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% in maybe_reuse_static(): new_cids 16=")
+        #   IO.inspect(id_to_cid, label: "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% in maybe_reuse_static(): id_to_cid=")
+        _ -> false
+      end
       {false, cid, existing_prints}
     else
       _ -> {true, nil, socket_prints}
@@ -606,8 +697,11 @@ defmodule Phoenix.LiveView.Diff do
   defp find_same_component_print(_print, _iterator, _old_cids, _new_cids, 0), do: :none
 
   defp find_same_component_print(print, iterator, old_cids, new_cids, attempts) do
+    # IO.inspect(iterator, label: "ITRITRITRITRITRITRITRITRITRITRITRITITR in find_same_component_print(): iterator")
+    # IO.inspect(print, label: "ITRITRITRITRITRITRITRITRITRITRITRITITR in find_same_component_print(): print")
     case :maps.next(iterator) do
       {_, cid, iterator} ->
+        # TOO EXPENSIVE
         case old_cids do
           %{^cid => {_, _, _, _, {^print, _} = tree}} ->
             {-cid, tree}

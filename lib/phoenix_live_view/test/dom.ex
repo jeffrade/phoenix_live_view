@@ -139,6 +139,7 @@ defmodule Phoenix.LiveViewTest.DOM do
   # Diff merging
 
   def merge_diff(rendered, diff) do
+    # IO.inspect(diff, label: "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ merge_diff diff", limit: :infinity)
     {new, diff} = Map.pop(diff, @components)
     rendered = deep_merge(rendered, diff)
 
@@ -185,6 +186,7 @@ defmodule Phoenix.LiveViewTest.DOM do
   # Diff rendering
 
   def render_diff(rendered) do
+    IO.inspect("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ in DOM.render_diff()")
     rendered
     |> Phoenix.LiveView.Diff.to_iodata(fn cid, contents ->
       contents
