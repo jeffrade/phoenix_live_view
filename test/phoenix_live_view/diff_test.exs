@@ -333,6 +333,22 @@ defmodule Phoenix.LiveView.DiffTest do
     end
   end
 
+  defmodule IfOnlyComponent do
+    use Phoenix.LiveComponent
+
+    def mount(socket) do
+      {:ok, assign(socket, if: true)}
+    end
+
+    def render(assigns) do
+      ~L"""
+      <%= if @if do %>
+        IF <%= @from %>
+      <% end %>
+      """
+    end
+  end
+
   defmodule TempComponent do
     use Phoenix.LiveComponent
 
@@ -968,6 +984,95 @@ defmodule Phoenix.LiveView.DiffTest do
 
       {cid_to_component, _, 6} = diff_components
       assert {IfComponent, "index_5", _, _, _} = cid_to_component[5]
+    end
+
+    test "inside comprehension with subtree and IfOnlyComponent" do
+      template = fn components ->
+        assigns = %{components: components}
+
+        ~L"""
+        <div>
+          <%= for {component, index} <- Enum.with_index(@components, 0) do %>
+            <%= index %>: <%= component %>
+          <% end %>
+        </div>
+        """
+      end
+
+      # We start by rendering two components
+      components = [
+        %Component{id: "index_1", assigns: %{from: :index_1}, component: IfOnlyComponent},
+        %Component{id: "index_2", assigns: %{from: :index_2}, component: IfOnlyComponent}
+      ]
+
+      {socket, _full_render, diff_components} = render(template.(components))
+
+      {cid_to_component, _, 3} = diff_components
+      assert {IfOnlyComponent, "index_1", _, _, _} = cid_to_component[1]
+      assert {IfOnlyComponent, "index_2", _, _, _} = cid_to_component[2]
+
+      # Now let's add a third component, it shall reuse index_1
+      components = [
+        %Component{id: "index_3", assigns: %{from: :index_3}, component: IfOnlyComponent}
+      ]
+
+      {socket, diff, diff_components} =
+        render(template.(components), socket.fingerprints, diff_components)
+
+      assert diff == %{
+               0 => %{d: [["0", 3]]},
+               :c => %{3 => %{0 => %{0 => "index_3"}, :s => -1}}
+             }
+
+      {cid_to_component, _, 4} = diff_components
+      assert {IfOnlyComponent, "index_3", _, _, _} = cid_to_component[3]
+
+      # Now let's add a fourth component, with a different subtree than index_0
+      components = [
+        %Component{
+          id: "index_4",
+          assigns: %{from: :index_4, if: false},
+          component: IfOnlyComponent
+        }
+      ]
+
+      {socket, diff, diff_components} =
+        render(template.(components), socket.fingerprints, diff_components)
+
+      assert diff == %{
+               0 => %{d: [["0", 4]]},
+               # FIXME entire index_4 map missing
+               :c => %{4 => %{0 => %{0 => "index_4", :s => []}, :s => -1}}
+             }
+
+      {cid_to_component, _, 5} = diff_components
+      assert {IfOnlyComponent, "index_4", _, _, _} = cid_to_component[4]
+
+      # Finally, let's add a fifth component while changing the first component at the same time.
+      # We should point to the index tree of index_0 before render.
+      components = [
+        %Component{
+          id: "index_1",
+          assigns: %{from: :index_1, if: false},
+          component: IfOnlyComponent
+        },
+        %Component{id: "index_5", assigns: %{from: :index_5}, component: IfOnlyComponent}
+      ]
+
+      {_socket, diff, diff_components} =
+        render(template.(components), socket.fingerprints, diff_components)
+
+      assert diff == %{
+               0 => %{d: [["0", 1], ["1", 5]]},
+               :c => %{
+                 # FIXME entire index_1 map missing
+                 1 => %{0 => %{0 => "index_1", :s => []}},
+                 5 => %{0 => %{0 => "index_5"}, :s => -1}
+               }
+             }
+
+      {cid_to_component, _, 6} = diff_components
+      assert {IfOnlyComponent, "index_5", _, _, _} = cid_to_component[5]
     end
 
     test "inside nested comprehension" do
